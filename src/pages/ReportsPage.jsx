@@ -127,6 +127,9 @@ const ReportsPage = () => {
           )}
         </div>
       </main>
+      <br />
+    <br />
+    <br />
     </div>
   );
 };

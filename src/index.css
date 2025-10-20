@@ -1,1 +1,27 @@
 @import "tailwindcss";
+
+/* Make sure the app occupies full viewport height and content scrolls inside the app */
+html, body, #root {
+	height: 100%;
+}
+
+/* Ensure body background doesn't cause extra scroll on iOS */
+body {
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	overscroll-behavior-y: none;
+}
+
+/* Make the main layout handle overflow; children can scroll internally */
+.app-scrollable {
+	min-height: 100%;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.content-scrollable {
+	flex: 1 1 auto;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch; /* smoother scrolling on iOS */
+}

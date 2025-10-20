@@ -1,6 +1,6 @@
  import React from 'react';
 
-import { FiLogOut, FiUser } from 'react-icons/fi';
+import { FiLogOut, FiUser, FiMenu } from 'react-icons/fi';
 
 import { signOut } from 'firebase/auth';
 
@@ -9,6 +9,7 @@ import { auth } from '../../firebase/config';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../context/AuthContext';
+import { useUI } from '../../context/UIContext';
 
 
 
@@ -17,6 +18,7 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   const { currentUser } = useAuth();
+  const { toggleSidebar } = useUI();
 
 
 
@@ -34,7 +36,16 @@ const Navbar = () => {
 
     <header className="flex items-center justify-between p-6 bg-gray-900/50 backdrop-blur-lg">
 
-      <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
+      <div className="flex items-center gap-3">
+        <button
+          className="lg:hidden p-2 rounded-md text-gray-300 hover:bg-gray-700/50"
+          onClick={toggleSidebar}
+          aria-label="Open sidebar"
+        >
+          <FiMenu />
+        </button>
+        <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
+      </div>
 
       <div className="flex items-center gap-4">
 

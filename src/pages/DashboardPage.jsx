@@ -5,28 +5,29 @@ import Sidebar from '../components/layout/Sidebar';
 import Navbar from '../components/layout/Navbar';
 import Spinner from '../components/ui/Spinner';
 import { FiArrowUpRight, FiArrowDownRight, FiDollarSign, FiPackage } from 'react-icons/fi';
+import SimpleChart from '../components/ui/SimpleChart';
 
 // This reusable component displays a single statistic.
 const StatCard = ({ title, value, change, icon, changeType, loading }) => {
   const isPositive = changeType === 'positive';
   if (loading) {
     return (
-      <div className="p-6 h-36 flex justify-center items-center bg-gray-800/50 backdrop-blur-lg rounded-2xl">
+      <div className="p-4 sm:p-6 h-28 sm:h-36 flex justify-center items-center bg-gray-800/50 backdrop-blur-lg rounded-2xl">
         <Spinner />
       </div>
     );
   }
   return (
-    <div className="p-6 bg-gray-800/50 backdrop-blur-lg rounded-2xl animate-fade-in-up">
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-gray-400">{title}</p>
+    <div className="p-4 sm:p-6 bg-gray-800/50 backdrop-blur-lg rounded-2xl animate-fade-in-up">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs sm:text-sm text-gray-400">{title}</p>
         <div className={`p-2 rounded-lg bg-cyan-500/20 text-cyan-400`}>{icon}</div>
       </div>
-      <h2 className="text-3xl font-bold text-white">{value}</h2>
+      <h2 className="text-2xl sm:text-3xl font-bold text-white truncate">{value}</h2>
       {change && (
         <div className={`flex items-center mt-2 text-xs ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
           {isPositive ? <FiArrowUpRight /> : <FiArrowDownRight />}
-          <span>{change} vs last month</span>
+          <span className="ml-1 truncate">{change} vs last month</span>
         </div>
       )}
     </div>
@@ -46,6 +47,8 @@ const DashboardPage = () => {
     expensesChange: null,
   });
   const [loading, setLoading] = useState(true);
+  const [salesChartData, setSalesChartData] = useState([]);
+  const [topProducts, setTopProducts] = useState([]);
 
   // Helper function to safely calculate percentage change.
   const calculatePercentageChange = (current, previous) => {
@@ -96,6 +99,53 @@ const DashboardPage = () => {
           fetchDataForPeriod(thisMonthStart, now),
           fetchDataForPeriod(lastMonthStart, lastMonthEnd)
         ]);
+
+        // --- 3a. Build chart datasets from sales documents for this month ---
+        const salesRef = collection(db, 'sales');
+        const salesQuery = query(salesRef, where('saleDate', '>=', Timestamp.fromDate(thisMonthStart)), where('saleDate', '<=', Timestamp.fromDate(now)));
+        const salesSnapshot = await getDocs(salesQuery);
+
+        // daily totals for current month (1..today)
+        const daysInMonthSoFar = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+        // we'll only show up to today
+        const todayDay = now.getDate();
+        const dailyTotals = Array.from({ length: todayDay }, () => 0);
+
+        // product weekly aggregation (4 weeks buckets)
+        const productWeekly = {}; // { productName: [w1,w2,w3,w4] }
+
+        salesSnapshot.forEach(doc => {
+          const data = doc.data();
+          const saleDate = data.saleDate && data.saleDate.toDate ? data.saleDate.toDate() : null;
+          if (!saleDate) return;
+
+          const dayIndex = saleDate.getDate() - 1; // 0-based index for dailyTotals
+          if (dayIndex >= 0 && dayIndex < dailyTotals.length) {
+            dailyTotals[dayIndex] += data.totalAmount || 0;
+          }
+
+          // distribute items into weekly buckets for product charts
+          const weekIndex = Math.min(3, Math.floor((saleDate - thisMonthStart) / (7 * 24 * 60 * 60 * 1000)));
+          const items = data.items || [];
+          items.forEach(item => {
+            const name = item.productName || item.id || 'Unknown';
+            const rev = (item.priceAtTimeOfSale ?? item.sellingPrice ?? 0) * (item.quantity ?? 1);
+            if (!productWeekly[name]) productWeekly[name] = [0, 0, 0, 0];
+            productWeekly[name][weekIndex] += rev;
+          });
+        });
+
+        // prepare chart arrays
+        const salesChartArr = dailyTotals.map(v => Math.round(v));
+
+        // top products by total revenue across the month
+        const top = Object.entries(productWeekly)
+          .map(([name, weeks]) => ({ name, weeks, total: weeks.reduce((a, b) => a + b, 0) }))
+          .sort((a, b) => b.total - a.total)
+          .slice(0, 3);
+
+        setSalesChartData(salesChartArr);
+        setTopProducts(top);
         
         const productsSnapshot = await getDocs(collection(db, 'products'));
         let lowStockCount = 0;
@@ -133,12 +183,13 @@ const DashboardPage = () => {
   }).format(amount);
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
-      <Sidebar />
-      <main className="flex-1">
-        <Navbar />
-        <div className="p-6">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+    <div className="app-scrollable min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
+      <div className="flex">
+        <Sidebar />
+        <main className="flex-1 flex flex-col">
+          <Navbar />
+          <div className="content-scrollable p-4 sm:p-6">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
             
             <StatCard 
               title="Revenue (This Month)" 
@@ -180,19 +231,37 @@ const DashboardPage = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-6 mt-6 lg:grid-cols-3">
-            <div className="p-6 lg:col-span-2 bg-gray-800/50 backdrop-blur-lg rounded-2xl animate-fade-in-up">
+          <div className="grid grid-cols-1 gap-4 mt-6 lg:grid-cols-3">
+            <div className="p-4 sm:p-6 lg:col-span-2 bg-gray-800/50 backdrop-blur-lg rounded-2xl animate-fade-in-up">
               <h3 className="mb-4 text-lg font-semibold">Sales Trend</h3>
-              <p className="text-gray-400">[Chart will go here]</p>
+              <SimpleChart data={salesChartData.length ? salesChartData : [12000, 15000, 13000, 18000, 16000, stats.totalRevenue || 10000]} color="#06b6d4" />
             </div>
-            <div className="p-6 bg-gray-800/50 backdrop-blur-lg rounded-2xl animate-fade-in-up">
+            <div className="p-4 sm:p-6 bg-gray-800/50 backdrop-blur-lg rounded-2xl animate-fade-in-up">
               <h3 className="mb-4 text-lg font-semibold">Most Profitable Items</h3>
-              <p className="text-gray-400">[Top products list will go here]</p>
+              <div className="flex flex-col gap-3">
+                {topProducts.length === 0 && <p className="text-gray-400">No product data for this month yet</p>}
+                {topProducts.map((p) => (
+                  <div key={p.name} className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{p.name}</p>
+                      <p className="text-xs text-gray-400">{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(p.total)}</p>
+                    </div>
+                    <div className="w-24">
+                      <SimpleChart data={p.weeks.map(v => Math.round(v))} height={32} color={p.total > 0 ? '#34d399' : '#9ca3af'} />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </main>
     </div>
+    <br />
+    <br />
+    <br />
+
+  </div>
   );
 };
 

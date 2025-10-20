@@ -106,6 +106,9 @@ const SettingsPage = () => {
           </div>
         </div>
       </main>
+      <br />
+    <br />
+    <br />
     </div>
   );
 };

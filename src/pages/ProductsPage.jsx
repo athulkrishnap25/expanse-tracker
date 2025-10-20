@@ -79,22 +79,30 @@ const ProductsPage = () => {
 
   return (
     <>
-      <div className="flex min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
+      {/* Set a fixed screen height and prevent horizontal overflow on the main container */}
+      <div className="flex h-screen overflow-hidden bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
         <Sidebar />
-        <main className="flex-1">
+        
+        {/* The main content area will handle its own scrolling */}
+        <main className="flex-1 overflow-y-auto">
           <Navbar />
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
+          
+          {/* Use responsive padding for smaller screens */}
+          <div className="p-4 sm:p-6">
+            
+            {/* Make the header stack on mobile and space out elements */}
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
               <h2 className="text-2xl font-semibold">Your Products</h2>
               <button 
                 onClick={handleOpenAddModal}
-                className="flex items-center gap-2 px-4 py-2 font-semibold text-white bg-cyan-600 rounded-lg hover:bg-cyan-700 transition duration-300"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 font-semibold text-white bg-cyan-600 rounded-lg hover:bg-cyan-700 transition duration-300"
               >
                 <FiPlus />
                 Add Product
               </button>
             </div>
             
+            {/* This container correctly handles table overflow with a horizontal scrollbar */}
             <div className="overflow-x-auto bg-gray-800/50 backdrop-blur-lg rounded-2xl">
               {loading ? (
                 <div className="flex justify-center items-center h-64">
@@ -119,7 +127,7 @@ const ProductsPage = () => {
                           <td className="p-4 text-gray-300">{formatCurrency(product.costPrice)}</td>
                           <td className="p-4 text-green-400">{formatCurrency(product.sellingPrice)}</td>
                           <td className="p-4">{product.stockQuantity}</td>
-                          <td className="p-4 flex gap-4">
+                          <td className="p-4 flex gap-2 sm:gap-4"> {/* Adjusted gap for mobile */}
                             <button 
                               onClick={() => handleOpenEditModal(product)}
                               className="text-cyan-400 hover:text-cyan-300"
@@ -148,6 +156,9 @@ const ProductsPage = () => {
             </div>
           </div>
         </main>
+        <br />
+    <br />
+    <br />
       </div>
 
       <ProductModal 
